@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>PB Maker - Preset & Clipping Edition</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f0f0f2; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        canvas { width: 100%; height: 100%; background: #eee; border-radius: 10px; }
+        .control-group { text-align: left; margin-top: 20px; padding: 10px; border-top: 1px solid #eee; }
+        .eye-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        .eye-btn { padding: 10px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 5px; font-weight: bold; }
+        .active { border-color: #007AFF; background: #e7f2ff; color: #007AFF; }
+        select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px; }
+        .save-btn { margin-top: 20px; width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>PB Maker</h1>
+    <canvas id="ballCanvas" width="1000" height="1000"></canvas>
+
+    <div class="control-group">
+        <p><strong>1. 模様を選択</strong></p>
+        <select id="flagPreset">
+            <option value="">-- 国旗プリセットから選ぶ --</option>
+        </select>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">または手持ちの画像をアップロード：</p>
+        <input type="file" id="patternInput" accept="image/*">
+    </div>
+
+    <div class="control-group">
+        <p><strong>2. 目を選択</strong></p>
+        <div class="eye-grid">
+            <button class="eye-btn" onclick="setEyes('A.png', this)">A</button>
+            <button class="eye-btn" onclick="setEyes('B.png', this)">B</button>
+            <button class="eye-btn" onclick="setEyes('C.png', this)">C</button>
+            <button class="eye-btn" onclick="setEyes('D.png', this)">D</button>
+            <button class="eye-btn" onclick="setEyes('E.png', this)">E</button>
+            <button class="eye-btn" onclick="setEyes('F.png', this)">F</button>
+            <button class="eye-btn" onclick="setEyes('G.png', this)">G</button>
+            <button class="eye-btn" onclick="setEyes('H.png', this)">H</button>
+        </div>
+    </div>
+    
+    <button class="save-btn" onclick="downloadImage()">画像を保存する</button>
+</div>
+
+<script>
+    const canvas = document.getElementById('ballCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const images = { 
+        base: new Image(), 
+        pattern: new Image(), 
+        eye: new Image(),
+        clip: new Image() 
+    };
+
+    images.base.src = 'base.png';
+    images.clip.src = 'clip.png';
+
+    const countries = [
+        {n:"日本", c:"jp"}, {n:"アメリカ", c:"us"}, {n:"イギリス", c:"gb"}, {n:"フランス", c:"fr"}, {n:"ドイツ", c:"de"},
+        {n:"イタリア", c:"it"}, {n:"カナダ", c:"ca"}, {n:"ロシア", c:"ru"}, {n:"中国", c:"cn"}, {n:"韓国", c:"kr"},
+        {n:"台湾", c:"tw"}, {n:"ポーランド", c:"pl"}, {n:"ウクライナ", c:"ua"}, {n:"オーストラリア", c:"au"}, {n:"ブラジル", c:"br"},
+        {n:"インド", c:"in"}, {n:"スペイン", c:"es"}, {n:"スウェーデン", c:"se"}, {n:"ノルウェー", c:"no"}, {n:"フィンランド", c:"fi"},
+        {n:"デンマーク", c:"dk"}, {n:"オランダ", c:"nl"}, {n:"ベルギー", c:"be"}, {n:"スイス", c:"ch"}, {n:"オーストリア", c:"at"},
+        {n:"ポルトガル", c:"pt"}, {n:"ギリシャ", c:"gr"}, {n:"トルコ", c:"tr"}, {n:"タイ", c:"th"}, {n:"ベトナム", c:"vn"},
+        {n:"インドネシア", c:"id"}, {n:"マレーシア", c:"my"}, {n:"フィリピン", c:"ph"}, {n:"シンガポール", c:"sg"}, {n:"メキシコ", c:"mx"},
+        {n:"アルゼンチン", c:"ar"}, {n:"チリ", c:"cl"}, {n:"エジプト", c:"eg"}, {n:"南アフリカ", c:"za"}, {n:"サウジアラビア", c:"sa"},
+        {n:"イスラエル", c:"il"}, {n:"アイルランド", c:"ie"}, {n:"チェコ", c:"cz"}, {n:"ハンガリー", c:"hu"}, {n:"ルーマニア", c:"ro"},
+        {n:"ニュージーランド", c:"nz"}, {n:"アイスランド", c:"is"}, {n:"エストニア", c:"ee"}, {n:"ラトビア", c:"lv"},
+        {n:"リトアニア", c:"lt"}, {n:"ベラルーシ", c:"by"}, {n:"カザフスタン", c:"kz"}, {n:"モンゴル", c:"mn"}, {n:"イラン", c:"ir"},
+        {n:"イラク", c:"iq"}, {n:"パキスタン", c:"pk"}, {n:"バングラデシュ", c:"bd"}, {n:"ミャンマー", c:"mm"}, {n:"カンボジア", c:"kh"},
+        {n:"ブルネイ", c:"bn"}, {n:"スリランカ", c:"lk"}, {n:"ネパール", c:"np"}, {n:"モロッコ", c:"ma"}, {n:"アルジェリア", c:"dz"},
+        {n:"ナイジェリア", c:"ng"}, {n:"ケニア", c:"ke"}, {n:"エチオピア", c:"et"}, {n:"コロンビア", c:"co"}, {n:"ペルー", c:"pe"},
+        {n:"ウルグアイ", c:"uy"}, {n:"キューバ", c:"cu"}, {n:"パナマ", c:"pa"}, {n:"ジャマイカ", c:"jm"}, {n:"北朝鮮", c:"kp"},
+        {n:"バチカン", c:"va"}, {n:"サンマリノ", c:"sm"}, {n:"モナコ", c:"mc"}, {n:"アンドラ", c:"ad"}, {n:"ルクセンブルク", c:"lu"}
+    ];
+
+    const presetSelect = document.getElementById('flagPreset');
+    countries.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = `https://flagcdn.com/w1280/${c.c}.png`;
+        opt.textContent = c.n;
+        presetSelect.appendChild(opt);
+    });
+
+    Object.values(images).forEach(img => {
+        img.onload = render;
+        img.onerror = () => console.log(img.src + " 読み込み失敗");
+    });
+
+    document.getElementById('patternInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (f) => images.pattern.src = f.target.result;
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    presetSelect.onchange = (e) => {
+        if (e.target.value) {
+            images.pattern.crossOrigin = "Anonymous";
+            images.pattern.src = e.target.value;
+        }
+    };
+
+    function setEyes(src, btn) {
+        images.eye.src = src;
+        document.querySelectorAll('.eye-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function drawImageProp(img, targetX, targetY, targetW, targetH) {
+        if(!img.complete || !img.src) return;
+        const scale = Math.min(targetW / img.width, targetH / img.height);
+        const x = targetX + (targetW - img.width * scale) / 2;
+        const y = targetY + (targetH - img.height * scale) / 2;
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. 模様（clip.pngを使用してクリッピング）
+        if (images.clip.complete && images.clip.src && images.pattern.src) {
+            ctx.save();
+            ctx.drawImage(images.clip, 0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = 'source-in';
+            
+            // 国旗を少し小さく表示するために 0.3 倍を適用
+            const baseScale = Math.max(canvas.width/images.pattern.width, canvas.height/images.pattern.height);
+            const scale = baseScale * 0.3; 
+            
+            const w = images.pattern.width * scale;
+            const h = images.pattern.height * scale;
+            ctx.drawImage(images.pattern, ((canvas.width - w) / 2) + 15, (canvas.height - h) / 2, w, h);
+            ctx.restore();
+        }
+
+        // 2. ベース
+        if (images.base.complete && images.base.src) {
+            ctx.drawImage(images.base, 0, 0, canvas.width, canvas.height);
+        }
+
+        // 3. 目の描画
+        if (images.eye.src) {
+            let x = 390, y = 380, w = 250, h = 150;
+            const name = images.eye.src;
+            if (name.includes('B.png')) { x = 370; y = 360; w = 290; h = 190; }
+            if (name.includes('D.png')) { x = 380; y = 380; w = 250; h = 150; }
+            if (name.includes('F.png')) { x = 400; y = 380; w = 220; h = 120; }
+            if (name.includes('G.png')) { x = 400; y = 390; w = 220; h = 120; }
+            if (name.includes('H.png')) { x = 400; y = 390; w = 220; h = 120; }
+            drawImageProp(images.eye, x, y, w, h);
+        }
+    }
+
+    function downloadImage() {
+        const link = document.createElement('a');
+        link.download = 'polandball.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+</script>
+</body>
+</html>
